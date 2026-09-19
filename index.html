@@ -3,10 +3,19 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-storage.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 const firebaseConfig={apiKey:"AIzaSyBXNCTfl-MJ9AAwl3D8m-bSFui_v7quNR8",authDomain:"fingerprint-exception-form.firebaseapp.com",projectId:"fingerprint-exception-form",storageBucket:"fingerprint-exception-form.firebasestorage.app",messagingSenderId:"552079508711",appId:"1:552079508711:web:0b8848e4af4d89122ece42",measurementId:"G-27EX3R57R5"};
-const app=initializeApp(firebaseConfig), db=getFirestore(app), storage=getStorage(app);
-window.FPDB={db,storage,collection,addDoc,getDocs,updateDoc,deleteDoc,doc,query,orderBy,serverTimestamp,ref,uploadBytes,getDownloadURL,deleteObject};
-window.dispatchEvent(new Event("firebase-ready"));
+const app=initializeApp(firebaseConfig), db=getFirestore(app), storage=getStorage(app), auth=getAuth(app);
+window.FPDB={db,storage,auth,collection,addDoc,getDocs,updateDoc,deleteDoc,doc,query,orderBy,serverTimestamp,ref,uploadBytes,getDownloadURL,deleteObject};
+try{
+  await signInAnonymously(auth);
+  window.FP_AUTH_READY=true;
+  window.dispatchEvent(new Event("firebase-ready"));
+}catch(err){
+  console.error("Anonymous sign-in failed",err);
+  window.FP_AUTH_ERROR=err;
+  window.dispatchEvent(new Event("firebase-auth-error"));
+}
 </script></head>
 <body><div class="wrap"><div class="card"><h1>แบบฟอร์มแจ้งสแกนนิ้วไม่ติด</h1><div class="sub">กรอกข้อมูลและแนบรูปหลักฐานการลงเวลา</div>
 <form id="f"><div class="grid">
@@ -36,5 +45,5 @@ async function editRecord(id){const r=centralRecords.find(x=>x.id===id);if(!r)re
 async function deleteRecord(id){const r=centralRecords.find(x=>x.id===id);if(!r||!confirm('ยืนยันลบรายการของ '+r.name+' ?'))return;try{if(r.storagePath){try{await FPDB.deleteObject(FPDB.ref(FPDB.storage,r.storagePath))}catch(_){}}await FPDB.deleteDoc(FPDB.doc(FPDB.db,'fingerprintExceptions',id));await loadCentral()}catch(e){alert('ลบไม่สำเร็จ: '+e.message)}}
 function render(){records.innerHTML=centralRecords.length?centralRecords.slice(0,30).map(r=>'<div class="record"><b>'+r.employeeId+' — '+r.name+'</b><br>'+r.date+' • '+r.scan+' • '+r.time+(r.note?'<br>'+r.note:'')+(r.photoUrl?'<br><a href="'+r.photoUrl+'" target="_blank" rel="noopener">📷 ดูรูปหลักฐาน</a>':'')+(adminMode?'<div class="admin-actions"><button type="button" onclick="editRecord(\''+r.id+'\')">แก้ไข</button><button type="button" class="del" onclick="deleteRecord(\''+r.id+'\')">ลบ</button></div>':'')+'</div>').join(''):'<div class="hint">ยังไม่มีรายการ</div>'}
 window.editRecord=editRecord;window.deleteRecord=deleteRecord;window.openManage=openManage;
-window.addEventListener('firebase-ready',loadCentral);if(window.FPDB)loadCentral();
+window.addEventListener('firebase-ready',loadCentral);window.addEventListener('firebase-auth-error',()=>{records.innerHTML='<div class="hint">เชื่อมต่อระบบไม่สำเร็จ กรุณาแจ้งผู้ดูแลระบบ</div>'});if(window.FP_AUTH_READY)loadCentral();
 </script></body></html>
